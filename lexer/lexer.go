@@ -1,6 +1,8 @@
 package lexer
 
-import "github.com/HT0323/monkey_interpreter/token"
+import (
+	"github.com/HT0323/monkey_interpreter/token"
+)
 
 // 字句解析器(レキサー)の構造体
 type Lexer struct {
@@ -57,6 +59,7 @@ func (l *Lexer) NextToken() token.Token {
 	default:
 		if isLetter(l.ch) {
 			tok.Literal = l.readIdentifier()
+			tok.Type = token.LookupIdent(tok.Literal)
 			return tok
 		} else {
 			tok = newToken(token.ILLEGAL, l.ch)
@@ -73,7 +76,8 @@ func newToken(tokenType token.TokenType, ch byte) token.Token {
 
 // 識別子として取得する(非英字が出て来るまで文字を読み進める)
 func (l *Lexer) readIdentifier() string {
-	position := l.readPosition
+	position := l.position
+
 	for isLetter(l.ch) {
 		l.readChar()
 	}
