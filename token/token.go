@@ -32,6 +32,9 @@ const (
 	IF       = "IF"       //言語定義識別子
 	ELSE     = "ELSE"     //言語定義識別子
 	RETURN   = "RETURN"   //言語定義識別子
+
+	EQ     = "=="
+	NOT_EQ = "!="
 )
 
 var keywords = map[string]TokenType{
