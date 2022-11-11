@@ -27,11 +27,21 @@ const (
 
 	FUNCTION = "FUNCTION" //言語定義識別子
 	LET      = "LET"      //言語定義識別子
+	TRUE     = "TRUE"     //言語定義識別子
+	FALSE    = "FALSE"    //言語定義識別子
+	IF       = "IF"       //言語定義識別子
+	ELSE     = "ELSE"     //言語定義識別子
+	RETURN   = "RETURN"   //言語定義識別子
 )
 
 var keywords = map[string]TokenType{
-	"fn":  FUNCTION,
-	"let": LET,
+	"fn":     FUNCTION,
+	"let":    LET,
+	"true":   TRUE,
+	"false":  FALSE,
+	"if":     IF,
+	"else":   ELSE,
+	"return": RETURN,
 }
 
 // 渡された識別子がユーザ定義かキーワード(言語定義)識別子かを判定
