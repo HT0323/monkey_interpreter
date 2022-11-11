@@ -1,16 +1,21 @@
 package token
 
-import "fmt"
-
 const (
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
 
 	IDENT = "IDENT" //ユーザー定義識別子
-	INT   = "INT"
+	INT   = "INT"   //数値
 
-	ASSIGN = "="
-	PLUS   = "+"
+	ASSIGN   = "="
+	PLUS     = "+"
+	MINUS    = "-"
+	BANG     = "!"
+	ASTERISK = "*"
+	SLASH    = "/"
+
+	LT = "<"
+	GT = ">"
 
 	COMMA     = ","
 	SEMICOLON = ";"
@@ -31,7 +36,6 @@ var keywords = map[string]TokenType{
 
 // 渡された識別子がユーザ定義かキーワード(言語定義)識別子かを判定
 func LookupIdent(ident string) TokenType {
-	fmt.Println(ident)
 	if tok, ok := keywords[ident]; ok {
 		return tok
 	}
