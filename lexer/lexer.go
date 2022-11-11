@@ -127,3 +127,12 @@ func (l *Lexer) readNumber() string {
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
 }
+
+// readPositionが指す文字を取得
+func (l *Lexer) peekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	} else {
+		return l.input[l.readPosition]
+	}
+}
