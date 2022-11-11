@@ -36,6 +36,8 @@ func (l *Lexer) readChar() {
 // 現在精査中の文字に対応したトークンを生成
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
+	l.skipWhitespace()
+
 	switch l.ch {
 	case '=':
 		tok = newToken(token.ASSIGN, l.ch)
@@ -60,6 +62,10 @@ func (l *Lexer) NextToken() token.Token {
 		if isLetter(l.ch) {
 			tok.Literal = l.readIdentifier()
 			tok.Type = token.LookupIdent(tok.Literal)
+			return tok
+		} else if isDigit(l.ch) {
+			tok.Type = token.INT
+			tok.Literal = l.readNumber()
 			return tok
 		} else {
 			tok = newToken(token.ILLEGAL, l.ch)
@@ -87,4 +93,25 @@ func (l *Lexer) readIdentifier() string {
 // 与えられた文字列が識別子(英字）なのかを判定する
 func isLetter(ch byte) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'z' || ch == '_'
+}
+
+// 読み込む文字が空欄、改行かを判定し該当すれば次の文字に読み進める
+func (l *Lexer) skipWhitespace() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
+}
+
+// 数字として取得する(非数字が出て来るまで文字を読み進める)
+func (l *Lexer) readNumber() string {
+	position := l.position
+	for isDigit(l.ch) {
+		l.readChar()
+	}
+	return l.input[position:l.position]
+}
+
+// 与えられた文字列が数字なのかを判定する
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
 }
