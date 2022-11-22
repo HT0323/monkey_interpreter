@@ -186,6 +186,7 @@ func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
 
 // ExpressionStatement Nodeの構築
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	defer untrace(trace("parseExpressionStatement"))
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
 	stmt.Expression = p.parseExpression(LOWSET)
 
@@ -197,6 +198,8 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 
 // 現在のTokenTypeに関連する前置構文解析関数を取得して実行する
 func (p *Parser) parseExpression(precedence int) ast.Expression {
+	defer untrace(trace("parseExpression"))
+
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)
@@ -219,6 +222,8 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 
 // IntegerLiteral Nodeの構築
 func (p *Parser) parseIntegerLiteral() ast.Expression {
+	defer untrace(trace("parseIntegerLiteral"))
+
 	lit := &ast.IntegerLiteral{Token: p.curToken}
 
 	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
@@ -239,6 +244,8 @@ func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 
 // 前置演算子のASTノードを作成
 func (p *Parser) parsePrefixExpression() ast.Expression {
+	defer untrace(trace("parsePrefixExpression"))
+
 	expression := &ast.PrefixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
@@ -272,6 +279,8 @@ func (p *Parser) curPrecedence() int {
 
 // 中間演算子のASTノードを作成
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+	defer untrace(trace("parseInfixExpression"))
+
 	expression := &ast.InfixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
