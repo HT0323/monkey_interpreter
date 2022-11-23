@@ -336,8 +336,17 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	}
 	expression.Consequence = p.ParseBlockStatement()
 
-	return expression
+	// else句が存在する場合
+	if p.peekTokenIs(token.ELSE) {
+		p.nextToken()
 
+		if !p.expectPeek(token.LBRACE) {
+			return nil
+		}
+		expression.Alternative = p.ParseBlockStatement()
+	}
+
+	return expression
 }
 
 // ブロックのASTノードを作成
