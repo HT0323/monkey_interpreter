@@ -15,6 +15,8 @@ func Eval(node ast.Node) object.Object {
 	// 式
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
+	case *ast.Boolean:
+		return &object.Boolean{Value: node.Value}
 	}
 
 	return nil
