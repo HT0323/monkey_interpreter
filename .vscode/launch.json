@@ -15,7 +15,7 @@
             "args": [
               "-test.v",
               "-test.run",
-              "TestOperatorPrecedenceParsing"
+              "TestEvalIntegerExpression"
             ],
         }
     ]
