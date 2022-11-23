@@ -12,7 +12,7 @@ import (
 // 数値が大きくなるほど優先順位が高くなる
 const (
 	_ int = iota
-	LOWSET
+	LOWEST
 	EQUALS      // ==
 	LESSGREATER // > , <
 	SUM         // +
@@ -195,7 +195,7 @@ func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	// defer untrace(trace("parseExpressionStatement"))
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
-	stmt.Expression = p.parseExpression(LOWSET)
+	stmt.Expression = p.parseExpression(LOWEST)
 
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
@@ -272,7 +272,7 @@ func (p *Parser) peekPrecedence() int {
 		return p
 	}
 
-	return LOWSET
+	return LOWEST
 }
 
 // 現在のトークンタイプに対応する優先順位を取得
@@ -281,7 +281,7 @@ func (p *Parser) curPrecedence() int {
 		return p
 	}
 
-	return LOWSET
+	return LOWEST
 }
 
 // 中間演算子のASTノードを作成
@@ -311,7 +311,7 @@ func (p *Parser) parseBoolean() ast.Expression {
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.nextToken()
 
-	exp := p.parseExpression(LOWSET)
+	exp := p.parseExpression(LOWEST)
 	if !p.expectPeek(token.RPAREN) {
 		return nil
 	}
@@ -328,7 +328,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	}
 
 	p.nextToken()
-	expression.Condition = p.parseExpression(LOWSET)
+	expression.Condition = p.parseExpression(LOWEST)
 
 	if !p.expectPeek(token.RPAREN) {
 		return nil
@@ -435,12 +435,12 @@ func (p *Parser) parseCallArguments() []ast.Expression {
 	}
 
 	p.nextToken()
-	args = append(args, p.parseExpression(LOWSET))
+	args = append(args, p.parseExpression(LOWEST))
 
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
 		p.nextToken()
-		args = append(args, p.parseExpression(LOWSET))
+		args = append(args, p.parseExpression(LOWEST))
 	}
 
 	if !p.expectPeek(token.RPAREN) {
