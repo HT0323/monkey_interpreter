@@ -15,7 +15,7 @@
             "args": [
               "-test.v",
               "-test.run",
-              "TestEvalIntegerExpression"
+              "TestBangOperator"
             ],
         }
     ]
