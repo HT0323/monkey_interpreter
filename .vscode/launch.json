@@ -13,9 +13,9 @@
             "program": "${fileDirname}",
             "env": {},
             "args": [
-              "-test.v",
-              "-test.run",
-              "TestBangOperator"
+                "-test.v",
+                "-test.run",
+                "TestEvalIntegerExpression"
             ],
         }
     ]
