@@ -249,12 +249,14 @@ func isError(obj object.Object) bool {
 
 // 変数名をkeyに格納されている値を取り出す
 func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object {
-	val, ok := env.Get(node.Value)
-	if !ok {
-		return newError("identifier not found: " + node.Value)
+	if val, ok := env.Get(node.Value); ok {
+		return val
+	}
+	if builtin, ok := builtins[node.Value]; ok {
+		return builtin
 	}
 
-	return val
+	return newError("identifier not found: " + node.Value)
 }
 
 //引数の各要素を評価する (2 + 2, 5 * 3) -> (4, 15)
@@ -275,14 +277,18 @@ func evalExpressions(exps []ast.Expression, env *object.Environment) []object.Ob
 
 // 関数の処理を実行
 func applyFunction(fn object.Object, args []object.Object) object.Object {
-	function, ok := fn.(*object.Function)
-	if !ok {
+	switch fn := fn.(type) {
+	case *object.Function:
+		//ユーザ定義関数
+		extendedEnv := extendFunctionEnv(fn, args)
+		evaluated := Eval(fn.Body, extendedEnv)
+		return unwrapReturnValue(evaluated)
+	case *object.Builtin:
+		//組み込み関数
+		return fn.Fn(args...)
+	default:
 		return newError("not a function: %s", fn.Type())
 	}
-
-	extendedEnv := extendFunctionEnv(function, args)
-	evaluated := Eval(function.Body, extendedEnv)
-	return unwrapReturnValue(evaluated)
 }
 
 //変数環境を新たに作成しその中に変数名を入れる
