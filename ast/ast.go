@@ -66,7 +66,7 @@ func (ls *LetStatement) String() string {
 	return out.String()
 }
 
-// 変数名・識別子の構造体
+// 変数名・識別子のASTノード構造体
 type Identifier struct {
 	Token token.Token
 	Value string
@@ -140,7 +140,7 @@ func (pe *PrefixExpression) String() string {
 	return out.String()
 }
 
-// 中間演算子の構造体
+// 中間演算子のASTノード構造体
 type InfixExpression struct {
 	Token    token.Token
 	Left     Expression
@@ -161,7 +161,7 @@ func (oe *InfixExpression) String() string {
 	return out.String()
 }
 
-// 真偽値の構造体
+// 真偽値のASTノード構造体
 type Boolean struct {
 	Token token.Token
 	Value bool
@@ -173,7 +173,7 @@ func (b *Boolean) String() string {
 	return b.Token.Literal
 }
 
-// 条件分岐の構造体
+// 条件分岐のASTノード構造体
 type IfExpression struct {
 	Token       token.Token
 	Condition   Expression      //条件
@@ -199,7 +199,7 @@ func (ie *IfExpression) String() string {
 	return out.String()
 }
 
-// ブロックの構造体
+// ブロックのASTノード構造体
 type BlockStatement struct {
 	Token      token.Token // {
 	Statements []Statement
@@ -216,7 +216,7 @@ func (bs *BlockStatement) String() string {
 	return out.String()
 }
 
-// 関数の構造体
+// 関数のASTノード構造体
 type FunctionLiteral struct {
 	Token      token.Token // fn
 	Parameters []*Identifier
@@ -241,7 +241,7 @@ func (fl *FunctionLiteral) String() string {
 	return out.String()
 }
 
-// 関数呼び出しの構造体
+// 関数呼び出しのASTノード構造体
 type CallExpression struct {
 	Token     token.Token // (
 	Function  Expression
@@ -265,3 +265,19 @@ func (ce *CallExpression) String() string {
 
 	return out.String()
 }
+
+// 文字列のASTノード構造体
+type StringLiteral struct {
+	Token token.Token
+	Value string
+}
+
+func (sl *StringLiteral) TokenLiteral() string {
+	return sl.Token.Literal
+}
+
+func (sl *StringLiteral) String() string {
+	return sl.Token.Literal
+}
+
+func (sl *StringLiteral) expressionNode() {}
