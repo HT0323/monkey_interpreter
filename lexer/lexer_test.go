@@ -115,7 +115,7 @@ if (5 < 10) {
 		{token.COMMA, ","},
 		{token.INT, "2"},
 		{token.RBRACKET, "]"},
-		{token.SEMICOLONl, ";"},
+		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
 
