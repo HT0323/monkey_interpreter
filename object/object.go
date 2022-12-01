@@ -88,7 +88,7 @@ func (f *Function) Type() ObjectType {
 func (f *Function) Inspect() string {
 	var out bytes.Buffer
 
-	params := []string{}
+	var params []string
 	for _, p := range f.Parameters {
 		params = append(params, p.String())
 	}
@@ -162,7 +162,7 @@ func (h *Hash) Type() ObjectType {
 func (h *Hash) Inspect() string {
 	var out bytes.Buffer
 
-	pairs := []string{}
+	var pairs []string
 	for _, pair := range h.Pairs {
 		pairs = append(pairs, fmt.Sprintf("%s: %s", pair.Key.Inspect(), pair.Value.Inspect()))
 	}
