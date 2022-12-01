@@ -183,8 +183,16 @@ func TestErrorHandling(t *testing.T) {
 			"unknown operator: BOOLEAN + BOOLEAN",
 		},
 		{
+			"true + false + true + false;",
+			"unknown operator: BOOLEAN + BOOLEAN",
+		},
+		{
 			"5; true + false; 5",
 			"unknown operator: BOOLEAN + BOOLEAN",
+		},
+		{
+			`"Hello" - "World"`,
+			"unknown operator: STRING - STRING",
 		},
 		{
 			"if (10 > 1) { true + false; }",
@@ -207,12 +215,12 @@ if (10 > 1) {
 			"identifier not found: foobar",
 		},
 		{
-			`"Hello" - "World"`,
-			"unknown operator: STRING - STRING",
-		},
-		{
 			`{"name": "Monkey"}[fn(x) { x }];`,
 			"unusable as hash key: FUNCTION",
+		},
+		{
+			`999[1]`,
+			"index operator not supported: INTEGER",
 		},
 	}
 
@@ -291,13 +299,42 @@ func TestFunctionApplication(t *testing.T) {
 	}
 }
 
+func TestEnclosingEnvironments(t *testing.T) {
+	input := `
+let first = 10;
+let second = 10;
+let third = 10;
+
+let ourFunction = fn(first) {
+  let second = 20;
+
+  first + second + third;
+};
+
+ourFunction(20) + first + second;`
+
+	testIntegerObject(t, testEval(input), 70)
+}
+
+func TestClosures(t *testing.T) {
+	input := `
+let newAdder = fn(x) {
+  fn(y) { x + y };
+};
+
+let addTwo = newAdder(2);
+addTwo(2);`
+
+	testIntegerObject(t, testEval(input), 4)
+}
+
 func TestStringLiteral(t *testing.T) {
 	input := `"Hello World!"`
 
 	evaluated := testEval(input)
 	str, ok := evaluated.(*object.String)
 	if !ok {
-		t.Fatalf("object is not String. goot=%T (%+v)", evaluated, evaluated)
+		t.Fatalf("object is not String. got=%T (%+v)", evaluated, evaluated)
 	}
 
 	if str.Value != "Hello World!" {
@@ -335,7 +372,8 @@ func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 		return false
 	}
 	if result.Value != expected {
-		t.Errorf("object has wrong value. got=%d, want=%d", result.Value, expected)
+		t.Errorf("object has wrong value. got=%d, want=%d",
+			result.Value, expected)
 		return false
 	}
 
