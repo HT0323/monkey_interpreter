@@ -5,14 +5,14 @@ type Environment struct {
 	outer *Environment //  新たにEnvironment構造体を作成するとる時に既存の構造体を格納する
 }
 
-func NewEnviroment() *Environment {
+func NewEnvironment() *Environment {
 	s := make(map[string]Object)
 	return &Environment{store: s}
 }
 
-//既存のEnvironment構造体を引き継いで新たに構造体を作成
+//既存のEnvironnment構造体を引き継いで新たに構造体を作成
 func NewEnclosedEnvironment(outer *Environment) *Environment {
-	env := NewEnviroment()
+	env := NewEnvironment()
 	env.outer = outer
 	return env
 }
