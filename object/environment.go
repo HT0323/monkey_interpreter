@@ -7,7 +7,7 @@ type Environment struct {
 
 func NewEnvironment() *Environment {
 	s := make(map[string]Object)
-	return &Environment{store: s}
+	return &Environment{store: s, outer: nil}
 }
 
 //既存のEnvironnment構造体を引き継いで新たに構造体を作成
