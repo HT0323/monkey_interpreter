@@ -55,9 +55,6 @@ type (
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{l: l, errors: []string{}}
 
-	p.nextToken()
-	p.nextToken()
-
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENT, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
@@ -84,6 +81,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
 
+	p.nextToken()
+	p.nextToken()
+
 	return p
 }
 
@@ -108,7 +108,7 @@ func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
 
-	for p.curToken.Type != token.EOF {
+	for !p.curTokenIs(token.EOF) {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			program.Statements = append(program.Statements, stmt)
@@ -185,7 +185,7 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 
 	stmt.ReturnValue = p.parseExpression(LOWEST)
 
-	for !p.curTokenIs(token.SEMICOLON) {
+	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
 
@@ -349,7 +349,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
-	expression.Consequence = p.ParseBlockStatement()
+	expression.Consequence = p.parseBlockStatement()
 
 	// else句が存在する場合
 	if p.peekTokenIs(token.ELSE) {
@@ -358,14 +358,14 @@ func (p *Parser) parseIfExpression() ast.Expression {
 		if !p.expectPeek(token.LBRACE) {
 			return nil
 		}
-		expression.Alternative = p.ParseBlockStatement()
+		expression.Alternative = p.parseBlockStatement()
 	}
 
 	return expression
 }
 
 // ブロックのASTノードを作成
-func (p *Parser) ParseBlockStatement() *ast.BlockStatement {
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	block := &ast.BlockStatement{Token: p.curToken}
 	block.Statements = []ast.Statement{}
 
@@ -396,7 +396,7 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 		return nil
 	}
 
-	lit.Body = p.ParseBlockStatement()
+	lit.Body = p.parseBlockStatement()
 
 	return lit
 }
@@ -452,7 +452,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 
 //引数、配列のリストを作成
 func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
-	list := []ast.Expression{}
+	var list []ast.Expression
 
 	if p.peekTokenIs(end) {
 		p.nextToken()
