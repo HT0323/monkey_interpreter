@@ -336,12 +336,12 @@ func (hl *HashLiteral) TokenLiteral() string { return hl.Token.Literal }
 func (hl *HashLiteral) String() string {
 	var out bytes.Buffer
 
-	paris := []string{}
+	pairs := []string{}
 	for key, value := range hl.Pairs {
-		paris = append(paris, key.String()+":"+value.String())
+		pairs = append(pairs, key.String()+":"+value.String())
 	}
 	out.WriteString("{")
-	out.WriteString(strings.Join(paris, ", "))
+	out.WriteString(strings.Join(pairs, ", "))
 	out.WriteString("}")
 
 	return out.String()
