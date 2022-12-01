@@ -4,7 +4,7 @@ import "github.com/HT0323/monkey_interpreter/object"
 
 //組み込み関数名とそれに対応する処理を保持
 var builtins = map[string]*object.Builtin{
-	"len": &object.Builtin{
+	"len": {
 		func(args ...object.Object) object.Object {
 			//len関数の引数は一つだけなのでそれ以外の場合はエラー
 			if len(args) != 1 {
