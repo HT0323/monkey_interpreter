@@ -3,12 +3,11 @@ package repl
 import (
 	"bufio"
 	"fmt"
-	"github.com/HT0323/monkey_interpreter/object"
-	"io"
-
 	"github.com/HT0323/monkey_interpreter/evaluator"
 	"github.com/HT0323/monkey_interpreter/lexer"
+	"github.com/HT0323/monkey_interpreter/object"
 	"github.com/HT0323/monkey_interpreter/parser"
+	"io"
 )
 
 const PROMPT = ">> "
@@ -18,11 +17,12 @@ func Start(in io.Reader, out io.Writer) {
 	env := object.NewEnvironment()
 
 	for {
-		fmt.Print(PROMPT)
+		fmt.Printf(PROMPT)
 		scanned := scanner.Scan()
 		if !scanned {
 			return
 		}
+
 		line := scanner.Text()
 		l := lexer.New(line)
 		p := parser.New(l)
@@ -42,6 +42,8 @@ func Start(in io.Reader, out io.Writer) {
 }
 
 func printParserErrors(out io.Writer, errors []string) {
+	io.WriteString(out, "Woops! We ran into some monkey business here!\n")
+	io.WriteString(out, " parser errors:\n")
 	for _, msg := range errors {
 		io.WriteString(out, "\t"+msg+"\n")
 	}
