@@ -2,22 +2,20 @@ package parser
 
 import (
 	"fmt"
-	"strconv"
-
 	"github.com/HT0323/monkey_interpreter/ast"
 	"github.com/HT0323/monkey_interpreter/lexer"
 	"github.com/HT0323/monkey_interpreter/token"
+	"strconv"
 )
 
-// 数値が大きくなるほど優先順位が高くなる
 const (
 	_ int = iota
 	LOWEST
 	EQUALS      // ==
-	LESSGREATER // > , <
+	LESSGREATER // > or <
 	SUM         // +
 	PRODUCT     // *
-	PREFIX      // -, !
+	PREFIX      // -X or !X
 	CALL        // myFunction(X)
 	INDEX       // array[index]
 )
@@ -35,6 +33,11 @@ var precedences = map[token.TokenType]int{
 	token.LBRACKET: INDEX,
 }
 
+type (
+	prefixParseFn func() ast.Expression
+	infixParseFn  func(ast.Expression) ast.Expression
+)
+
 type Parser struct {
 	l      *lexer.Lexer
 	errors []string
@@ -46,18 +49,16 @@ type Parser struct {
 	infixParseFns  map[token.TokenType]infixParseFn
 }
 
-type (
-	prefixParseFn func() ast.Expression               // 前置構文解析関数
-	infixParseFn  func(ast.Expression) ast.Expression // 中置構文解析関数
-)
-
-// Parser構造体を作成する
 func New(l *lexer.Lexer) *Parser {
-	p := &Parser{l: l, errors: []string{}}
+	p := &Parser{
+		l:      l,
+		errors: []string{},
+	}
 
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENT, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.STRING, p.parseStringLiteral)
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.TRUE, p.parseBoolean)
@@ -65,7 +66,6 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
-	p.registerPrefix(token.STRING, p.parseStringLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral)
 	p.registerPrefix(token.LBRACE, p.parseHashLiteral)
 
@@ -78,32 +78,55 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
+
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
 
+	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()
 	p.nextToken()
 
 	return p
 }
 
-func (p *Parser) Errors() []string {
-	return p.errors
-}
-
-// 次のtokenが期待するものと違った場合にエラーメッセージを作成する
-func (p *Parser) peekError(t token.TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead", t, p.peekToken.Type)
-	p.errors = append(p.errors, msg)
-}
-
-// curToken,peekTokenにtokenを設定する
 func (p *Parser) nextToken() {
 	p.curToken = p.peekToken
 	p.peekToken = p.l.NextToken()
 }
 
-// tokenを読み進めてNodeのツリーを作成する
+func (p *Parser) curTokenIs(t token.TokenType) bool {
+	return p.curToken.Type == t
+}
+
+func (p *Parser) peekTokenIs(t token.TokenType) bool {
+	return p.peekToken.Type == t
+}
+
+func (p *Parser) expectPeek(t token.TokenType) bool {
+	if p.peekTokenIs(t) {
+		p.nextToken()
+		return true
+	} else {
+		p.peekError(t)
+		return false
+	}
+}
+
+func (p *Parser) Errors() []string {
+	return p.errors
+}
+
+func (p *Parser) peekError(t token.TokenType) {
+	msg := fmt.Sprintf("expected next token to be %s, got %s instead",
+		t, p.peekToken.Type)
+	p.errors = append(p.errors, msg)
+}
+
+func (p *Parser) noPrefixParseFnError(t token.TokenType) {
+	msg := fmt.Sprintf("no prefix parse function for %s found", t)
+	p.errors = append(p.errors, msg)
+}
+
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
@@ -115,10 +138,10 @@ func (p *Parser) ParseProgram() *ast.Program {
 		}
 		p.nextToken()
 	}
+
 	return program
 }
 
-// tokenTypeに対応するNode構築メソッドの呼び出し
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
@@ -130,17 +153,15 @@ func (p *Parser) parseStatement() ast.Statement {
 	}
 }
 
-// LetStatement Nodeの構築
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.curToken}
 
-	// letの次のtokenTypeが変数名であることを期待
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
+
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
-	// 変数名の次のtokenTypeが=であることを期待
 	if !p.expectPeek(token.ASSIGN) {
 		return nil
 	}
@@ -156,28 +177,6 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return stmt
 }
 
-// 現在のトークンのトークンタイプが渡されたトークンタイプと一致するかチェック
-func (p *Parser) curTokenIs(t token.TokenType) bool {
-	return p.curToken.Type == t
-}
-
-// 次のトークンのトークンタイプが渡されたトークンタイプと一致するかチェック
-func (p *Parser) peekTokenIs(t token.TokenType) bool {
-	return p.peekToken.Type == t
-}
-
-// 次のトークンが期待値のTokenTypeと一致するか判定し、一致したら次のトークンを読み進める
-func (p *Parser) expectPeek(t token.TokenType) bool {
-	if p.peekTokenIs(t) {
-		p.nextToken()
-		return true
-	} else {
-		p.peekError(t)
-		return false
-	}
-}
-
-// ReturnStatement Nodeの構築
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{Token: p.curToken}
 
@@ -192,33 +191,19 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	return stmt
 }
 
-func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
-	p.prefixParseFns[tokenType] = fn
-}
-func (p *Parser) parseIdentifier() ast.Expression {
-	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-}
-
-func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
-	p.infixParseFns[tokenType] = fn
-}
-
-// ExpressionStatement Nodeの構築
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-	// defer untrace(trace("parseExpressionStatement"))
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
+
 	stmt.Expression = p.parseExpression(LOWEST)
 
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
+
 	return stmt
 }
 
-// 現在のTokenTypeに関連する前置構文解析関数を取得して実行する
 func (p *Parser) parseExpression(precedence int) ast.Expression {
-	// defer untrace(trace("parseExpression"))
-
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)
@@ -236,49 +221,10 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 
 		leftExp = infix(leftExp)
 	}
+
 	return leftExp
 }
 
-// IntegerLiteral Nodeの構築
-func (p *Parser) parseIntegerLiteral() ast.Expression {
-	// defer untrace(trace("parseIntegerLiteral"))
-
-	lit := &ast.IntegerLiteral{Token: p.curToken}
-
-	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
-	if err != nil {
-		msg := fmt.Sprintf("could not parse %q as integer", p.curToken.Literal)
-		p.errors = append(p.errors, msg)
-		return nil
-	}
-	lit.Value = value
-	return lit
-}
-
-// TokenTypeに一致する構文解析器が存在しない場合にエラーメッセージを追加する
-func (p *Parser) noPrefixParseFnError(t token.TokenType) {
-	msg := fmt.Sprintf("no prefix parse function for %s found", t)
-	p.errors = append(p.errors, msg)
-}
-
-// 前置演算子のASTノードを作成
-func (p *Parser) parsePrefixExpression() ast.Expression {
-	// defer untrace(trace("parsePrefixExpression"))
-
-	expression := &ast.PrefixExpression{
-		Token:    p.curToken,
-		Operator: p.curToken.Literal,
-	}
-
-	// 次の数値リテラルを読むためにトークンを一つ進める
-	p.nextToken()
-
-	expression.Right = p.parseExpression(PREFIX)
-
-	return expression
-}
-
-// 次のトークンタイプに対応する優先順位を取得
 func (p *Parser) peekPrecedence() int {
 	if p, ok := precedences[p.peekToken.Type]; ok {
 		return p
@@ -287,7 +233,6 @@ func (p *Parser) peekPrecedence() int {
 	return LOWEST
 }
 
-// 現在のトークンタイプに対応する優先順位を取得
 func (p *Parser) curPrecedence() int {
 	if p, ok := precedences[p.curToken.Type]; ok {
 		return p
@@ -296,15 +241,49 @@ func (p *Parser) curPrecedence() int {
 	return LOWEST
 }
 
-// 中間演算子のASTノードを作成
-func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
-	// defer untrace(trace("parseInfixExpression"))
+func (p *Parser) parseIdentifier() ast.Expression {
+	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+}
 
+func (p *Parser) parseIntegerLiteral() ast.Expression {
+	lit := &ast.IntegerLiteral{Token: p.curToken}
+
+	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as integer", p.curToken.Literal)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+
+	lit.Value = value
+
+	return lit
+}
+
+func (p *Parser) parseStringLiteral() ast.Expression {
+	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parsePrefixExpression() ast.Expression {
+	expression := &ast.PrefixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
+	}
+
+	p.nextToken()
+
+	expression.Right = p.parseExpression(PREFIX)
+
+	return expression
+}
+
+func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	expression := &ast.InfixExpression{
 		Token:    p.curToken,
 		Operator: p.curToken.Literal,
 		Left:     left,
 	}
+
 	precedence := p.curPrecedence()
 	p.nextToken()
 	expression.Right = p.parseExpression(precedence)
@@ -312,18 +291,15 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	return expression
 }
 
-// 真偽値のASTノードを作成
 func (p *Parser) parseBoolean() ast.Expression {
-	return &ast.Boolean{
-		Token: p.curToken,
-		Value: p.curTokenIs(token.TRUE),
-	}
+	return &ast.Boolean{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}
 }
 
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.nextToken()
 
 	exp := p.parseExpression(LOWEST)
+
 	if !p.expectPeek(token.RPAREN) {
 		return nil
 	}
@@ -331,7 +307,6 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	return exp
 }
 
-// if-else条件分岐のASTノードを作成
 func (p *Parser) parseIfExpression() ast.Expression {
 	expression := &ast.IfExpression{Token: p.curToken}
 
@@ -349,22 +324,22 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
+
 	expression.Consequence = p.parseBlockStatement()
 
-	// else句が存在する場合
 	if p.peekTokenIs(token.ELSE) {
 		p.nextToken()
 
 		if !p.expectPeek(token.LBRACE) {
 			return nil
 		}
+
 		expression.Alternative = p.parseBlockStatement()
 	}
 
 	return expression
 }
 
-// ブロックのASTノードを作成
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	block := &ast.BlockStatement{Token: p.curToken}
 	block.Statements = []ast.Statement{}
@@ -382,7 +357,6 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	return block
 }
 
-// 関数のASTノードを作成
 func (p *Parser) parseFunctionLiteral() ast.Expression {
 	lit := &ast.FunctionLiteral{Token: p.curToken}
 
@@ -401,11 +375,9 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	return lit
 }
 
-// 関数の引数のASTノードを作成
 func (p *Parser) parseFunctionParameters() []*ast.Identifier {
-	identifiers := []*ast.Identifier{}
+	var identifiers []*ast.Identifier
 
-	// 引数が空の場合はここで終了
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
 		return identifiers
@@ -413,11 +385,9 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 
 	p.nextToken()
 
-	// 1番目の引数の構造体を取得
 	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 	identifiers = append(identifiers, ident)
 
-	// 2番目 ~ n番目の引数の構造体を取得
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
 		p.nextToken()
@@ -438,19 +408,6 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	return exp
 }
 
-// 文字列のASTノードを作成
-func (p *Parser) parseStringLiteral() ast.Expression {
-	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
-}
-
-// 配列のASTノードを作成
-func (p *Parser) parseArrayLiteral() ast.Expression {
-	array := &ast.ArrayLiteral{Token: p.curToken}
-	array.Elements = p.parseExpressionList(token.RBRACKET)
-	return array
-}
-
-//引数、配列のリストを作成
 func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
 	var list []ast.Expression
 
@@ -475,6 +432,14 @@ func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
 	return list
 }
 
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	array := &ast.ArrayLiteral{Token: p.curToken}
+
+	array.Elements = p.parseExpressionList(token.RBRACKET)
+
+	return array
+}
+
 func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	exp := &ast.IndexExpression{Token: p.curToken, Left: left}
 
@@ -488,7 +453,6 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	return exp
 }
 
-// HashのASTノードを作成
 func (p *Parser) parseHashLiteral() ast.Expression {
 	hash := &ast.HashLiteral{Token: p.curToken}
 	hash.Pairs = make(map[ast.Expression]ast.Expression)
@@ -496,9 +460,11 @@ func (p *Parser) parseHashLiteral() ast.Expression {
 	for !p.peekTokenIs(token.RBRACE) {
 		p.nextToken()
 		key := p.parseExpression(LOWEST)
+
 		if !p.expectPeek(token.COLON) {
 			return nil
 		}
+
 		p.nextToken()
 		value := p.parseExpression(LOWEST)
 
@@ -514,4 +480,12 @@ func (p *Parser) parseHashLiteral() ast.Expression {
 	}
 
 	return hash
+}
+
+func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
+	p.prefixParseFns[tokenType] = fn
+}
+
+func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
+	p.infixParseFns[tokenType] = fn
 }
